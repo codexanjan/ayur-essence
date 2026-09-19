@@ -1,0 +1,150 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  DOCTOR
+  STUDENT
+  PATIENT
+}
+
+enum AssessmentStatus {
+  DRAFT
+  SUBMITTED
+  FINALIZED
+}
+
+enum AnswerType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TEXT
+  NUMBER
+}
+
+model User {
+  id                   String           @id @default(uuid())
+  fullName             String
+  email                String           @unique
+  passwordHash         String
+  role                 UserRole
+  isActive             Boolean          @default(true)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  createdPatients      PatientProfile[] @relation("CreatedPatients")
+  linkedPatientProfile PatientProfile?  @relation("LinkedUser")
+  createdAssessments   Assessment[]     @relation("CreatedAssessments")
+  finalizedAssessments Assessment[]     @relation("FinalizedAssessments")
+  createdObservations  Observation[]    @relation("CreatedObservations")
+
+  @@map("users")
+}
+
+model PatientProfile {
+  id           String       @id @default(uuid())
+  linkedUserId String?      @unique
+  linkedUser   User?        @relation("LinkedUser", fields: [linkedUserId], references: [id])
+  fullName     String
+  dateOfBirth  DateTime
+  gender       String
+  phone        String?
+  address      String?
+  createdBy    String
+  creator      User         @relation("CreatedPatients", fields: [createdBy], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  assessments  Assessment[]
+
+  @@map("patient_profiles")
+}
+
+model Question {
+  id              String               @id @default(uuid())
+  code            String               @unique
+  prompt          String
+  answerType      AnswerType           @default(SINGLE_CHOICE)
+  options         Json
+  scoringMap      Json
+  methodReference String               @default("baseline-v1")
+  version         Int                  @default(1)
+  isActive        Boolean              @default(true)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  responses       AssessmentResponse[]
+
+  @@map("questions")
+}
+
+model Assessment {
+  id                  String               @id @default(uuid())
+  patientId           String
+  patient             PatientProfile       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy           String
+  creator             User                 @relation("CreatedAssessments", fields: [createdBy], references: [id])
+  supervisingDoctorId String?
+
+  status              AssessmentStatus     @default(DRAFT)
+
+  vataPct             Float?
+  pittaPct            Float?
+  kaphaPct            Float?
+
+  dominantDosha       String?
+
+  methodVersion       String               @default("baseline-v1")
+  revisionNo          Int                  @default(1)
+
+  finalizedBy         String?
+  finalizer           User?                @relation("FinalizedAssessments", fields: [finalizedBy], references: [id])
+  finalizedAt         DateTime?
+
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  responses           AssessmentResponse[]
+  observations        Observation[]
+
+  @@map("assessments")
+}
+
+model AssessmentResponse {
+  id              String      @id @default(uuid())
+  assessmentId    String
+  assessment      Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  questionId      String
+  question        Question    @relation(fields: [questionId], references: [id])
+
+  responseValue   Json
+  scoringSnapshot Json
+
+  vataScore       Float       @default(0)
+  pittaScore      Float       @default(0)
+  kaphaScore      Float       @default(0)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([assessmentId, questionId])
+  @@map("assessment_responses")
+}
+
+model Observation {
+  id           String     @id @default(uuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  createdBy    String
+  creator      User       @relation("CreatedObservations", fields: [createdBy], references: [id])
+  notes        String
+  source       String     @default("PRACTITIONER")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("observations")
+}

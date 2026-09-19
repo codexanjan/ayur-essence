@@ -1,0 +1,705 @@
+{
+  "info": {
+    "_postman_id": "ayur-essence-vertical-slice-collection",
+    "name": "Ayur Essence API Collection",
+    "description": "Comprehensive Postman Test Collection for Ayur Essence: Digital Prakriti Assessment & Ayurvedic Constitution Analysis Platform.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "doctorEmail", "value": "doctor@example.com" },
+    { "key": "doctorPassword", "value": "Password@123" },
+    { "key": "studentEmail", "value": "student@example.com" },
+    { "key": "studentPassword", "value": "Password@123" },
+    { "key": "registrationCode", "value": "AYUR-2026" },
+    { "key": "token", "value": "" },
+    { "key": "doctorToken", "value": "" },
+    { "key": "studentToken", "value": "" },
+    { "key": "patientId", "value": "" },
+    { "key": "assessmentId", "value": "" },
+    { "key": "incompleteAssessmentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "00 Health",
+      "item": [
+        {
+          "name": "Get API Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('API reports running', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.message).to.eql('Ayur Essence API is running');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Authentication",
+      "item": [
+        {
+          "name": "Register Doctor",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Dr. New Practitioner\",\n  \"email\": \"new_doctor_{{$timestamp}}@example.com\",\n  \"password\": \"Password@123\",\n  \"role\": \"DOCTOR\",\n  \"registrationCode\": \"{{registrationCode}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Registration returns user and token', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data.token).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Doctor",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{doctorEmail}}\",\n  \"password\": \"{{doctorPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Login success=true', function () { pm.expect(json.success).to.eql(true); });",
+                  "pm.test('JWT token returned', function () { pm.expect(json.data.token).to.be.a('string').and.not.empty; });",
+                  "if (json?.data?.token) {",
+                  "    pm.collectionVariables.set('token', json.data.token);",
+                  "    pm.collectionVariables.set('doctorToken', json.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Wrong Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{doctorEmail}}\",\n  \"password\": \"WrongPassword@999\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Wrong password rejected with 401', function () { pm.response.to.have.status(401); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Standard error format returned', function () {",
+                  "  pm.expect(json.success).to.eql(false);",
+                  "  pm.expect(json.error).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Patients",
+      "item": [
+        {
+          "name": "Create Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ananya Rao\",\n  \"dateOfBirth\": \"1998-05-12\",\n  \"gender\": \"FEMALE\",\n  \"phone\": \"9876543210\",\n  \"address\": \"Mysuru, Karnataka\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/patients", "host": ["{{baseUrl}}"], "path": ["api", "patients"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Patient created (201)', function () { pm.expect([200, 201]).to.include(pm.response.code); });",
+                  "const json = pm.response.json();",
+                  "const patientId = json?.data?.patient?.id || json?.data?.id;",
+                  "pm.test('patientId returned', function () { pm.expect(patientId).to.be.a('string').and.not.empty; });",
+                  "if (patientId) { pm.collectionVariables.set('patientId', patientId); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Patient",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/patients/{{patientId}}", "host": ["{{baseUrl}}"], "path": ["api", "patients", "{{patientId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Patient matches ID', function () { pm.expect(json.data.patient.id).to.eql(pm.collectionVariables.get('patientId')); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Patient Without JWT",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Unauthorized Patient\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"gender\": \"MALE\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/patients", "host": ["{{baseUrl}}"], "path": ["api", "patients"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rejected without JWT (401)', function () { pm.response.to.have.status(401); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Questionnaire",
+      "item": [
+        {
+          "name": "Get Active Questions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/questions", "host": ["{{baseUrl}}"], "path": ["api", "questions"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Questions loaded (200)', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Returns active questions list', function () {",
+                  "  pm.expect(json.data.questions).to.be.an('array').and.not.empty;",
+                  "});",
+                  "if (json.data.questions.length > 0) {",
+                  "  pm.collectionVariables.set('q0_id', json.data.questions[0].id);",
+                  "  pm.collectionVariables.set('q0_opt0', json.data.questions[0].options[0]);",
+                  "  pm.collectionVariables.set('q0_opt1', json.data.questions[0].options[1]);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Assessments",
+      "item": [
+        {
+          "name": "Start Assessment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"methodVersion\": \"baseline-v1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/patients/{{patientId}}/assessments", "host": ["{{baseUrl}}"], "path": ["api", "patients", "{{patientId}}", "assessments"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Assessment created (201)', function () { pm.expect([200, 201]).to.include(pm.response.code); });",
+                  "const json = pm.response.json();",
+                  "const assessmentId = json?.data?.assessment?.id || json?.data?.assessmentId || json?.data?.id;",
+                  "pm.test('assessmentId returned', function () { pm.expect(assessmentId).to.be.a('string').and.not.empty; });",
+                  "if (assessmentId) { pm.collectionVariables.set('assessmentId', assessmentId); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save Responses",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responses\": [\n    {\n      \"questionId\": \"{{q0_id}}\",\n      \"responseValue\": \"{{q0_opt0}}\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{assessmentId}}/responses", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{assessmentId}}", "responses"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responses saved (200)', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Snapshot stored', function () { pm.expect(json.data.responses[0].scoringSnapshot).to.be.an('object'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Same Responses (Upsert)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responses\": [\n    {\n      \"questionId\": \"{{q0_id}}\",\n      \"responseValue\": \"{{q0_opt1}}\"\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{assessmentId}}/responses", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{assessmentId}}", "responses"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Upsert succeeds (200)', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Value updated cleanly', function () {",
+                  "  pm.expect(json.data.responses[0].responseValue).to.eql(pm.collectionVariables.get('q0_opt1'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Scoring",
+      "item": [
+        {
+          "name": "Submit All Required Answers",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('baseUrl') + '/api/questions',",
+                  "  method: 'GET',",
+                  "  header: { 'Authorization': 'Bearer ' + pm.collectionVariables.get('doctorToken') }",
+                  "}, function (err, res) {",
+                  "  if (!err) {",
+                  "    const questions = res.json().data.questions;",
+                  "    const responses = questions.map(q => ({ questionId: q.id, responseValue: q.options[0] }));",
+                  "    pm.collectionVariables.set('allResponsesPayload', JSON.stringify({ responses: responses }));",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('All answers saved (200)', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{allResponsesPayload}}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{assessmentId}}/responses", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{assessmentId}}", "responses"] }
+          }
+        },
+        {
+          "name": "Calculate Prakriti Result",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{assessmentId}}/calculate", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{assessmentId}}", "calculate"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Calculation succeeds (200)', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "const result = json?.data?.result || json?.data;",
+                  "const vata = Number(result.vataPct);",
+                  "const pitta = Number(result.pittaPct);",
+                  "const kapha = Number(result.kaphaPct);",
+                  "pm.test('Dosha percentages are numbers', function () {",
+                  "  pm.expect(vata).to.be.a('number');",
+                  "  pm.expect(pitta).to.be.a('number');",
+                  "  pm.expect(kapha).to.be.a('number');",
+                  "});",
+                  "pm.test('Dosha percentages total approximately 100', function () {",
+                  "  pm.expect(vata + pitta + kapha).to.be.within(99.9, 100.1);",
+                  "});",
+                  "pm.test('Dominant Dosha is valid', function () {",
+                  "  pm.expect(['VATA', 'PITTA', 'KAPHA', 'VATA-PITTA', 'VATA-KAPHA', 'PITTA-KAPHA', 'TRIDOSHA']).to.include(result.dominantDosha);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Observations",
+      "item": [
+        {
+          "name": "Add Practitioner Observation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Patient exhibits classic Prakriti traits with consistent pulse.\",\n  \"source\": \"PRACTITIONER\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{assessmentId}}/observations", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{assessmentId}}", "observations"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Observation created (201)', function () { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Report",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{assessmentId}}/report", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{assessmentId}}", "report"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Report returned (200)', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Contains clinical disclaimer', function () {",
+                  "  pm.expect(json.data.disclaimer).to.include('not a standalone medical diagnosis');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 RBAC Tests",
+      "item": [
+        {
+          "name": "Login Student",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"{{studentPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Student login 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "if (json?.data?.token) { pm.collectionVariables.set('studentToken', json.data.token); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student Finalize (Forbidden)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{assessmentId}}/finalize", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{assessmentId}}", "finalize"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Student cannot finalize (403)', function () { pm.response.to.have.status(403); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student Reopen (Forbidden)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Student attempt to reopen\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{assessmentId}}/reopen", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{assessmentId}}", "reopen"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Student cannot reopen (403)', function () { pm.response.to.have.status(403); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 Negative Scoring",
+      "item": [
+        {
+          "name": "Create Incomplete Assessment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"methodVersion\": \"baseline-v1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/patients/{{patientId}}/assessments", "host": ["{{baseUrl}}"], "path": ["api", "patients", "{{patientId}}", "assessments"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Created draft (201)', function () { pm.expect([200, 201]).to.include(pm.response.code); });",
+                  "const json = pm.response.json();",
+                  "const id = json?.data?.assessment?.id || json?.data?.assessmentId || json?.data?.id;",
+                  "pm.collectionVariables.set('incompleteAssessmentId', id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Calculate Incomplete Assessment (422)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{incompleteAssessmentId}}/calculate", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{incompleteAssessmentId}}", "calculate"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rejected due to missing questions (422)', function () { pm.response.to.have.status(422); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Error code is ASSESSMENT_INCOMPLETE', function () {",
+                  "  pm.expect(json.error.code).to.eql('ASSESSMENT_INCOMPLETE');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09 Doctor Workflow",
+      "item": [
+        {
+          "name": "Finalize Assessment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{assessmentId}}/finalize", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{assessmentId}}", "finalize"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Finalize succeeds (200)', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Status is FINALIZED', function () { pm.expect(json.data.status).to.eql('FINALIZED'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reopen Assessment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Revision requested during practitioner review\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/assessments/{{assessmentId}}/reopen", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "{{assessmentId}}", "reopen"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reopen succeeds (200)', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Status is DRAFT and revision increments', function () {",
+                  "  pm.expect(json.data.status).to.eql('DRAFT');",
+                  "  pm.expect(json.data.revisionNo).to.eql(2);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 History",
+      "item": [
+        {
+          "name": "Get Patient Assessment History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/patients/{{patientId}}/history", "host": ["{{baseUrl}}"], "path": ["api", "patients", "{{patientId}}", "history"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Assessments list returned', function () {",
+                  "  pm.expect(json.data.assessments).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
