@@ -9,6 +9,16 @@ This document provides verified test results from the automated backend test sui
 - **Execution Time:** 2.42s
 - **Pass Rate:** 100%
 
+## Visual Execution Evidence
+
+### Automated Postman Collection Runner (100% Pass Rate)
+
+![Postman Collection Runner Execution](assets/postman-test-runner.svg)
+
+<p align="center">
+  <img src="assets/postman-test-runner.jpg" alt="Postman Desktop Runner Screenshot" width="850" style="border-radius: 8px; border: 1px solid #27272a;" />
+</p>
+
 ---
 
 ## Complete Test Cases Matrix

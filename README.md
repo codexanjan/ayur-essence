@@ -228,16 +228,42 @@ npm run dev
 
 ## 10. Postman Automated Testing
 
-The Postman collection is located in:
-- Collection: `backend/postman/Ayur_Essence.postman_collection.json`
-- Environment: `backend/postman/Ayur_Essence_Local.postman_environment.json`
+The complete automated Postman test suite covers the end-to-end clinical workflow across 11 sequential test folders and 24 API requests, executing 52 test assertions with 100% pass rate.
 
-### Import & Run Instructions:
-1. Open Postman.
-2. Click **Import** and select both JSON files from `backend/postman/`.
-3. Select the **Ayur Essence Local Environment**.
-4. Open **Collection Runner** and run the collection.
-5. All 11 folders execute sequentially, automatically chaining authentication tokens (`doctorToken`, `studentToken`), `patientId`, and `assessmentId`, asserting HTTP response codes, JSON structures, RBAC prohibitions (`403 Forbidden` on student finalization), and scoring normalization ($\text{Vata} + \text{Pitta} + \text{Kapha} \approx 100\%$).
+### Postman Test Runner Execution
+
+![Postman Collection Runner Execution](docs/assets/postman-test-runner.svg)
+
+<p align="center">
+  <img src="docs/assets/postman-test-runner.jpg" alt="Postman Desktop Runner Screenshot" width="850" style="border-radius: 8px; border: 1px solid #27272a;" />
+</p>
+
+### Postman Files
+- **Collection**: [`backend/postman/Ayur_Essence.postman_collection.json`](backend/postman/Ayur_Essence.postman_collection.json)
+- **Environment**: [`backend/postman/Ayur_Essence_Local.postman_environment.json`](backend/postman/Ayur_Essence_Local.postman_environment.json)
+
+### Import & Execution Instructions
+1. Open **Postman Desktop**.
+2. Click **Import** (top left) and select both JSON files from `backend/postman/`.
+3. Set the active environment dropdown to **Ayur Essence Local**.
+4. Right-click **Ayur Essence API Collection** and select **Run Collection**.
+5. Ensure **Save responses** is checked, and click **Run Ayur Essence API Collection**.
+
+### Sequential Folder Test Matrix
+
+| # | Folder / Test Suite | Requests | Key Assertions & Automated Chaining | Expected Status |
+|---|---|---|---|---|
+| **00** | `00 Health` | `GET /api/health` | Service status probe, returns `"Ayur Essence API is running"` | `200 OK` |
+| **01** | `01 Authentication` | `POST /api/auth/register`<br>`POST /api/auth/login`<br>`POST /api/auth/login (Wrong)` | • Validates staff code `AYUR-2026`<br>• Captures JWT in `{{token}}` & `{{doctorToken}}`<br>• Asserts `401 Unauthorized` on wrong password | `201 Created`<br>`200 OK`<br>`401 Unauthorized` |
+| **02** | `02 Patients` | `POST /api/patients`<br>`GET /api/patients/:id`<br>`POST /api/patients (No Auth)` | • Creates patient record in PostgreSQL<br>• Captures UUID into `{{patientId}}`<br>• Asserts unauthenticated request fails (`401`) | `201 Created`<br>`200 OK`<br>`401 Unauthorized` |
+| **03** | `03 Questionnaire` | `GET /api/questions` | Verifies active questions (16 indicators), verifies question `options` present while confidential `scoringMap` is withheld | `200 OK` |
+| **04** | `04 Assessments` | `POST /api/patients/:id/assessments`<br>`PUT /api/assessments/:id/responses`<br>`PUT /api/assessments/:id/responses (Upsert)` | • Creates `DRAFT` assessment, saves `{{assessmentId}}`<br>• Saves 16 answers with JSONB `scoringSnapshot`<br>• Re-submits question with different option to verify atomic UPSERT | `201 Created`<br>`200 OK`<br>`200 OK` |
+| **05** | `05 Scoring` | `POST /api/assessments/:id/calculate` | • Calculates Tridosha score<br>• Asserts $\text{Vata} + \text{Pitta} + \text{Kapha} = 100\%$<br>• Identifies dominant Dosha (`VATA`, `PITTA`, or `KAPHA`)<br>• Transitions status to `SUBMITTED` | `200 OK` |
+| **06** | `06 Observations` | `POST /api/assessments/:id/observations`<br>`GET /api/assessments/:id/report` | • Records practitioner observation notes<br>• Generates full clinical dossier with disclaimer | `201 Created`<br>`200 OK` |
+| **07** | `07 RBAC Tests` | `POST /api/auth/register (Student)`<br>`POST /api/auth/login (Student)`<br>`POST /api/assessments/:id/finalize (Student)`<br>`POST /api/assessments/:id/reopen (Student)` | • Registers & logs in student scholar<br>• Captures `{{studentToken}}`<br>• **Asserts Student finalize returns `403 Forbidden`**<br>• **Asserts Student reopen returns `403 Forbidden`** | `201 Created`<br>`200 OK`<br>`403 Forbidden`<br>`403 Forbidden` |
+| **08** | `08 Negative Scoring` | `POST /api/patients/:id/assessments (Incomplete)`<br>`POST /api/assessments/:id/calculate (Incomplete)` | • Starts incomplete draft assessment<br>• Asserts calculation rejected with `422 Unprocessable`<br>• Asserts error code `ASSESSMENT_INCOMPLETE` | `201 Created`<br>`422 Unprocessable` |
+| **09** | `09 Doctor Workflow` | `POST /api/assessments/:id/finalize (Doctor)`<br>`POST /api/assessments/:id/reopen (Doctor)` | • Doctor locks assessment $\to$ status `FINALIZED`<br>• Doctor reopens with reason $\to$ increments `revisionNo` and returns status to `DRAFT` | `200 OK`<br>`200 OK` |
+| **10** | `10 History` | `GET /api/patients/:id/history` | Verifies patient longitudinal assessment history timeline sorted by date | `200 OK` |
 
 ---
 
