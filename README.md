@@ -1,5 +1,7 @@
 # 🌿 Ayur Essence
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-059669?style=for-the-badge&logo=vercel&logoColor=white)](https://ayuressence-two.vercel.app)
+
 ## Digital Prakriti Assessment & Ayurvedic Constitution Analysis Platform
 
 Ayur Essence is a clinical-grade web platform for Ayurvedic practitioners (physicians and clinical scholars) to perform standardized, reproducible **Prakriti (psychophysical constitution)** assessments, calculate normalized **Vata**, **Pitta**, and **Kapha** bio-energetic distributions, and record longitudinal clinical observations.
@@ -311,3 +313,13 @@ Result:
 
 > **Important Clinical Notice:**
 > The Prakriti assessment results and Dosha distributions calculated by this platform are based strictly on the configured questionnaire scoring method and are intended for educational, research, and practitioner-assisted evaluation. They do **not** constitute a standalone medical diagnosis, prescription, or clinical guarantee.
+
+---
+
+<div align="center">
+
+Made with ❤️ by [Anjan Shetty](https://github.com/codexanjan)
+
+[![GitHub](https://img.shields.io/badge/GitHub-codexanjan-181717?style=flat&logo=github)](https://github.com/codexanjan)
+
+</div>
